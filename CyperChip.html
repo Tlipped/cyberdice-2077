@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <title>CyberDice 2077</title>
+  <!-- 使用稳定的 CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"
+    type="application/javascript"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@300;500&display=swap"
+    rel="stylesheet">
+  <style>
+    /* Cyberpunk Theme CSS */
+    :root {
+      --neon-blue: #00f3ff;
+      --neon-pink: #bc13fe;
+      --bg-dark: #050510;
+      --glass: rgba(255, 255, 255, 0.05);
+      --border-color: rgba(0, 243, 255, 0.3);
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: #fff;
+      font-family: 'Roboto Mono', monospace;
+      margin: 0;
+      min-height: 100vh;
+      background-image: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* 顶部标题栏 */
+    header {
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3rem;
+      text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue);
+      margin-bottom: 5px;
+      letter-spacing: 5px;
+    }
+
+    .subtitle {
+      color: var(--neon-pink);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 30px;
+    }
+
+    /* 主布局：左右分栏 */
+    .layout-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      width: 90%;
+      max-width: 1200px;
+      justify-content: center;
+      align-items: flex-start;
+      margin-bottom: 50px;
+    }
+
+    .game-section {
+      flex: 1;
+      min-width: 350px;
+      max-width: 600px;
+    }
+
+    .info-section {
+      flex: 0.6;
+      min-width: 300px;
+      max-width: 400px;
+    }
+
+    /* 面板样式 */
+    .panel {
+      background: var(--glass);
+      border: 1px solid var(--border-color);
+      border-radius: 15px;
+      padding: 25px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+      transition: transform 0.2s;
+    }
+    
+    .panel:hover {
+      box-shadow: 0 0 25px rgba(0, 243, 255, 0.2);
+    }
+
+    .panel h3 {
+      margin-top: 0;
+      color: var(--neon-blue);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      font-family: 'Orbitron';
+    }
+
+    /* 按钮与输入框 */
+    .btn {
+      background: rgba(0, 243, 255, 0.1);
+      border: 1px solid var(--neon-blue);
+      color: var(--neon-blue);
+      padding: 10px 20px;
+      font-family: 'Orbitron', sans-serif;
+      cursor: pointer;
+      transition: 0.3s;
+      text-transform: uppercase;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    .btn:hover {
+      background: var(--neon-blue);
+      color: #000;
+      box-shadow: 0 0 20px var(--neon-blue);
+    }
+
+    .btn-pink {
+      border-color: var(--neon-pink);
+      color: var(--neon-pink);
+      background: rgba(188, 19, 254, 0.1);
+    }
+
+    .btn-pink:hover {
+      background: var(--neon-pink);
+      color: #fff;
+      box-shadow: 0 0 20px var(--neon-pink);
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin: 15px 0;
+    }
+
+    input {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #333;
+      color: #fff;
+      padding: 10px;
+      width: 100%;
+      font-family: 'Roboto Mono', monospace;
+      text-align: center;
+      font-size: 1rem;
+    }
+    
+    input:focus {
+        outline: none;
+        border-color: var(--neon-blue);
+    }
+
+    /* 状态显示 */
+    .stat-value {
+      font-weight: bold;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+
+    .win { color: #0f0; text-shadow: 0 0 10px #0f0; font-weight: bold; }
+    .lose { color: #f00; text-shadow: 0 0 10px #f00; font-weight: bold; }
+
+    #console-log {
+      font-size: 12px;
+      color: #888;
+      height: 120px;
+      overflow-y: auto;
+      border-top: 1px solid #333;
+      padding-top: 10px;
+      font-family: monospace;
+    }
+
+    /* 说明文本 */
+    .info-text p {
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #ccc;
+        margin-bottom: 10px;
+    }
+    .info-text strong { color: var(--neon-blue); }
+    .highlight { color: var(--neon-pink); }
+
+    /* Loading 遮罩 */
+    .glitch-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: var(--neon-blue);
+      font-family: 'Orbitron';
+      font-size: 1.5rem;
+    }
+    .spinner {
+        border: 4px solid rgba(0, 243, 255, 0.1);
+        border-top: 4px solid var(--neon-blue);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="glitch-overlay" id="loading">
+      <div class="spinner"></div>
+      <div id="loading-text">TRANSACTION PENDING...</div>
+  </div>
+
+  <header>
+      <h1>CYBERDICE 2077</h1>
+      <div class="subtitle">去中心化博彩协议</div>
+  </header>
+
+  <div class="layout-wrapper">
+    
+    <!-- 左侧：游戏操作区 -->
+    <div class="game-section">
+        <!-- 连接面板 -->
+        <div class="panel">
+          <div class="row">
+            <span id="wallet-addr" style="font-size: 0.9rem;">🔴 未连接钱包</span>
+            <button class="btn" id="connect-btn" onclick="connectWallet()" style="width: auto;">LINK START</button>
+          </div>
+          <div class="row" style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px;">
+            <span>ETH: <span id="eth-bal" class="stat-value">0.00</span></span>
+            <span>CYBER: <span id="token-bal" class="stat-value">0.00</span></span>
+          </div>
+        </div>
+
+        <!-- 交易所面板 -->
+        <div class="panel">
+          <h3>1. 筹码交易所 (Exchange)</h3>
+          <p style="font-size: 0.8rem; color: #888; margin-bottom: 15px;">当前汇率: 1 ETH = 1000 CYBER</p>
+          
+          <div class="row">
+            <input type="number" id="buy-amount" placeholder="输入 ETH 数量" step="0.01">
+            <button class="btn" onclick="buyTokens()" style="width: 120px; margin-left: 10px;">买入</button>
+          </div>
+          
+          <div class="row">
+            <input type="number" id="sell-amount" placeholder="输入 CYBER 数量" step="100">
+            <button class="btn btn-pink" onclick="sellTokens()" style="width: 120px; margin-left: 10px;">提现</button>
+          </div>
+        </div>
+
+        <!-- 游戏面板 -->
+        <div class="panel">
+          <h3>2. 赌桌 (The Table)</h3>
+          <div class="row">
+            <span style="font-size: 0.9rem;">当前授权额度: <span id="allowance-amt" class="stat-value" style="color:var(--neon-pink)">0</span></span>
+            <button class="btn" onclick="approveToken()" style="width: auto; font-size: 0.8rem; padding: 5px 10px;">批准授权</button>
+          </div>
+          <hr style="border-color: #333; margin: 20px 0;">
+          
+          <div style="text-align: center; margin-bottom: 10px;">下注金额 (CYBER)</div>
+          <div class="row" style="justify-content: center;">
+            <input type="number" id="bet-amount" placeholder="100" style="width: 200px; font-size: 1.5rem; color: var(--neon-blue);">
+          </div>
+          
+          <div class="row" style="gap: 20px;">
+            <button class="btn" onclick="playGame(0)" style="height: 60px; font-size: 1.2rem;">🟢 押小 (0-49)</button>
+            <button class="btn btn-pink" onclick="playGame(1)" style="height: 60px; font-size: 1.2rem;">🟣 押大 (50-99)</button>
+          </div>
+
+          <div id="game-status" style="text-align: center; margin-top: 25px; font-size: 1.1rem; min-height: 30px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px;">
+            等待下注...
+          </div>
+        </div>
+
+        <!-- 日志 -->
+        <div id="console-log">System initialized... Waiting for user connection.</div>
+    </div>
+
+    <!-- 右侧：说明书 -->
+    <div class="info-section">
+        <div class="panel info-text">
+            <h3>📖 游戏指南 (Manual)</h3>
+            <p><strong>Step 1: 连接钱包</strong><br>点击左上角 Link Start 连接 MetaMask，并切换至 Sepolia 测试网。</p>
+            
+            <p><strong>Step 2: 兑换筹码 (DeFi)</strong><br>游戏使用 <span class="highlight">CYBER</span> 代币。在交易所用测试币 ETH 购买筹码。你也可以随时将筹码兑换回 ETH。</p>
+            
+            <p><strong>Step 3: 授权 (Approve)</strong><br>首次游戏需要点击“批准授权”，允许智能合约从你的余额中扣除下注金额。这是 ERC-20 标准的安全机制。</p>
+            
+            <p><strong>Step 4: 下注 (Bet)</strong><br>输入金额，选择押大或押小。智能合约会生成随机数：</br>
+            - <span style="color:#0f0">赢</span>：获得 2倍 奖金。</br>
+            - <span style="color:#f00">输</span>：失去本金。</p>
+        </div>
+
+        <div class="panel info-text">
+            <h3>⚙️ 调试信息</h3>
+            <p>Contract Address:</p>
+            <p style="font-size: 0.75rem; word-break: break-all; color: #666;">
+                Token: 0xc9c764B269DeE0920c93aD8Ce26cF95D52443Be4<br>
+                Game: 0xe82137785E77fbA8938A85ca64dEf6de87b1E567
+            </p>
+            <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
+                * 确保你的钱包有 Sepolia ETH 作为 Gas 费。<br>
+                * 如果一直 Pending，请尝试在 MetaMask 加速交易。
+            </p>
+        </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ================= 配置区域 =================
+    const TOKEN_ADDRESS = "0xc9c764B269DeE0920c93aD8Ce26cF95D52443Be4";
+    const GAME_ADDRESS = "0xe82137785E77fbA8938A85ca64dEf6de87b1E567";
+
+    const TOKEN_ABI = [
+      "function balanceOf(address) view returns (uint)",
+      "function buyTokens() payable",
+      "function sellTokens(uint amount)",
+      "function approve(address spender, uint amount) returns (bool)",
+      "function allowance(address owner, address spender) view returns (uint)"
+    ];
+    const GAME_ABI = [
+      "function bet(uint amount, uint8 choice)",
+      "event GameResult(address indexed player, uint256 betAmount, bool won, uint256 payout, uint8 diceRoll)"
+    ];
+    // ===========================================
+
+    let provider, signer, tokenContract, gameContract;
+    let userAddress;
+    let currentEthBalance = 0;
+    let currentTokenBalance = 0;
+
+    function log(msg) {
+      const el = document.getElementById("console-log");
+      const time = new Date().toLocaleTimeString();
+      el.innerHTML = `[${time}] > ${msg}<br>` + el.innerHTML;
+    }
+
+    function showLoading(text) {
+        document.getElementById("loading-text").innerText = text;
+        document.getElementById("loading").style.display = "flex";
+    }
+
+    function hideLoading() {
+        document.getElementById("loading").style.display = "none";
+    }
+
+    async function connectWallet() {
+      if (!window.ethereum) return alert("❌ 请安装 MetaMask");
+      
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if(accounts.length === 0) return;
+
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+
+        tokenContract = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
+        gameContract = new ethers.Contract(GAME_ADDRESS, GAME_ABI, signer);
+
+        document.getElementById("wallet-addr").innerText = "🟢 " + userAddress.substring(0, 6) + "..." + userAddress.slice(-4);
+        document.getElementById("connect-btn").innerText = "已连接";
+        document.getElementById("connect-btn").disabled = true;
+        
+        log("钱包已连接: " + userAddress);
+        
+        // 初始化数据
+        await updateData();
+
+        // --- 核心优化：监听区块变化，实现动态余额 ---
+        provider.on("block", (blockNumber) => {
+            console.log("New block mined: " + blockNumber);
+            updateData(); // 每个新区块都刷新一次余额
+        });
+
+        // 监听游戏结果
+        setupGameListener();
+
+        // 监听账户切换
+        window.ethereum.on('accountsChanged', function (accounts) {
+            window.location.reload();
+        });
+
+      } catch (e) { console.error(e); alert("连接被拒绝或出错"); }
+    }
+
+    async function updateData() {
+      if (!userAddress) return;
+      
+      try {
+          // 1. 获取 ETH 余额
+          const ethBalBN = await provider.getBalance(userAddress);
+          currentEthBalance = parseFloat(ethers.utils.formatEther(ethBalBN)); // 存为全局变量方便检查
+          document.getElementById("eth-bal").innerText = currentEthBalance.toFixed(4);
+
+          // 2. 获取 Token 余额
+          const tokenBalBN = await tokenContract.balanceOf(userAddress);
+          currentTokenBalance = parseFloat(ethers.utils.formatEther(tokenBalBN));
+          document.getElementById("token-bal").innerText = currentTokenBalance.toFixed(2);
+
+          // 3. 获取授权额度
+          const allowanceBN = await tokenContract.allowance(userAddress, GAME_ADDRESS);
+          document.getElementById("allowance-amt").innerText = parseFloat(ethers.utils.formatEther(allowanceBN)).toFixed(0);
+      } catch(e) {
+          console.error("更新数据失败", e);
+      }
+    }
+
+    function setupGameListener() {
+        gameContract.on("GameResult", (player, amount, won, payout, roll) => {
+          if (player === userAddress) {
+            const resultText = won ? "WIN! 胜利" : "LOSE 失败";
+            const resultClass = won ? "win" : "lose";
+            const payoutEth = ethers.utils.formatEther(payout);
+            
+            document.getElementById("game-status").innerHTML =
+              `<span class="${resultClass}">${resultText}</span> | 点数: ${roll} | ${won ? '+' + payoutEth : '-'+ethers.utils.formatEther(amount)} CYBER`;
+            
+            log(`🎲 游戏结果: ${resultText} (点数: ${roll})`);
+            hideLoading();
+            updateData(); // 强制立即刷新
+          }
+        });
+    }
+
+    // --- 交易逻辑 ---
+
+    async function buyTokens() {
+      const input = document.getElementById("buy-amount");
+      const amt = input.value;
+      if (!amt || amt <= 0) return alert("请输入有效的金额");
+      
+      // 前端校验：余额检查
+      if (parseFloat(amt) > currentEthBalance) {
+          return alert(`❌ ETH 余额不足！\n当前余额: ${currentEthBalance} ETH`);
+      }
+
+      try {
+        showLoading("正在购买筹码...");
+        const tx = await tokenContract.buyTokens({ value: ethers.utils.parseEther(amt) });
+        log("交易已发送: " + tx.hash);
+        await tx.wait();
+        log("✅ 购币成功！");
+        input.value = ""; // 清空输入框
+        await updateData();
+      } catch (e) { 
+          log("❌ 交易失败"); 
+          alert("交易失败: " + (e.reason || e.message));
+      } finally { hideLoading(); }
+    }
+
+    async function sellTokens() {
+      const input = document.getElementById("sell-amount");
+      const amt = input.value;
+      if (!amt || amt <= 0) return alert("请输入有效的金额");
+
+      // 前端校验：CYBER 余额检查
+      if (parseFloat(amt) > currentTokenBalance) {
+          return alert(`❌ CYBER 余额不足！\n当前余额: ${currentTokenBalance} CYBER`);
+      }
+
+      try {
+        showLoading("正在提现 (Sell)...");
+        const tx = await tokenContract.sellTokens(ethers.utils.parseEther(amt));
+        log("提现交易发送中...");
+        await tx.wait();
+        log("✅ 提现成功！ETH 已到账");
+        input.value = "";
+        await updateData();
+      } catch (e) { 
+          log("❌ 提现失败");
+          alert("提现失败: " + (e.reason || e.message));
+      } finally { hideLoading(); }
+    }
+
+    async function approveToken() {
+      try {
+        showLoading("正在请求授权...");
+        const tx = await tokenContract.approve(GAME_ADDRESS, ethers.constants.MaxUint256);
+        log("授权交易发送中...");
+        await tx.wait();
+        log("✅ 授权成功！");
+        await updateData();
+      } catch (e) { 
+          log("授权取消或失败"); 
+      } finally { hideLoading(); }
+    }
+
+    async function playGame(choice) {
+      const input = document.getElementById("bet-amount");
+      const amt = input.value;
+      if (!amt || amt <= 0) return alert("请输入下注金额");
+      
+      // 1. 检查余额
+      if (parseFloat(amt) > currentTokenBalance) {
+          return alert("❌ 筹码不足，请先去交易所购买！");
+      }
+      
+      // 2. 检查授权
+      const currentAllowance = document.getElementById("allowance-amt").innerText;
+      if (parseFloat(currentAllowance) < parseFloat(amt)) {
+          return alert("❌ 授权额度不足！请先点击【批准授权】按钮。");
+      }
+
+      try {
+        showLoading("正在投掷骰子 (等待上链)...");
+        document.getElementById("game-status").innerHTML = `<span style="color:yellow">🎲 骰子滚动中...</span>`;
+        
+        // 显式指定 Gas Limit 防止 MetaMask 估算错误
+        const tx = await gameContract.bet(ethers.utils.parseEther(amt), choice, { gasLimit: 300000 });
+        
+        log("下注已提交，等待结果...");
+        input.value = ""; // 清空输入
+        // 结果将在 setupGameListener 中处理
+      } catch (e) {
+        console.error(e);
+        hideLoading();
+        log("❌ 下注失败");
+        document.getElementById("game-status").innerText = "交易失败";
+        
+        // 尝试解析错误原因
+        if(e.data && e.data.message && e.data.message.includes("broke")) {
+             alert("☠️ 赌场破产了！合约里没钱赔你了。");
+        } else {
+             alert("交易出错: " + (e.reason || e.message));
+        }
+      }
+    }
+  </script>
+</body>
+</html>
